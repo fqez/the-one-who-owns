@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}Control de Préstamos Familiares{% endblock %}
+
+{% block content %}
+<header class="header">
+    <div class="header-icon">📋</div>
+    <div>
+        <h1>Control de Préstamos Familiares</h1>
+        <p class="subtitle">Gestiona préstamos y deudas con tu familia</p>
+    </div>
+</header>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Me Deben</span>
+            <span class="stat-icon stat-icon-green">📈</span>
+        </div>
+        <span class="stat-value text-green">${{ "%.2f"|format(totales.me_deben) }}</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Yo Debo</span>
+            <span class="stat-icon stat-icon-red">📉</span>
+        </div>
+        <span class="stat-value text-red">${{ "%.2f"|format(totales.yo_debo) }}</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Balance Neto</span>
+            <span class="stat-icon stat-icon-purple">📊</span>
+        </div>
+        <span class="stat-value {% if totales.balance >= 0 %}text-green{% else %}text-red{% endif %}">${{
+            "%.2f"|format(totales.balance) }}</span>
+    </div>
+    <div class="stat-card">
+        <div class="stat-header">
+            <span class="stat-label">Total Familiares</span>
+            <span class="stat-icon stat-icon-blue">👥</span>
+        </div>
+        <span class="stat-value text-blue">{{ totales.total_familiares }}</span>
+    </div>
+</div>
+
+<button class="btn btn-primary btn-add-familiar" onclick="document.getElementById('modal-familiar').showModal()">
+    👥 Agregar Familiar
+</button>
+
+<h2 class="section-title">Familiares ({{ familiares|length }})</h2>
+
+{% if familiares %}
+<div class="familiar-list">
+    {% for f in familiares %}
+    <a href="{{ url_for('ver_familiar', familiar_id=f.id) }}" class="familiar-card">
+        <div class="familiar-info">
+            <div class="familiar-avatar">👤</div>
+            <div>
+                <div class="familiar-nombre">{{ f.nombre }}</div>
+                <div class="familiar-prestamos">{{ f.num_prestamos }} préstamo{{ 's' if f.num_prestamos != 1 }}</div>
+            </div>
+        </div>
+        <div class="familiar-balance">
+            {% if f.balance > 0 %}
+            <span class="badge badge-green">Me debe</span>
+            <span class="balance-amount text-green">${{ "%.2f"|format(f.balance) }}</span>
+            {% elif f.balance < 0 %} <span class="badge badge-red">Le debo</span>
+                <span class="balance-amount text-red">-${{ "%.2f"|format(f.balance|abs) }}</span>
+                {% else %}
+                <span class="badge badge-gray">Sin deuda</span>
+                <span class="balance-amount">$0.00</span>
+                {% endif %}
+                <span class="chevron">›</span>
+        </div>
+    </a>
+    {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+    <p>No hay familiares registrados. ¡Agrega uno para comenzar!</p>
+</div>
+{% endif %}
+
+<dialog id="modal-familiar" class="modal">
+    <form method="post" action="{{ url_for('agregar_familiar') }}" class="modal-content">
+        <h3>Agregar Familiar</h3>
+        <div class="form-group">
+            <label for="nombre">Nombre</label>
+            <input type="text" id="nombre" name="nombre" placeholder="Nombre del familiar" required autofocus>
+        </div>
+        <div class="modal-actions">
+            <button type="button" class="btn btn-secondary"
+                onclick="document.getElementById('modal-familiar').close()">Cancelar</button>
+            <button type="submit" class="btn btn-primary">Agregar</button>
+        </div>
+    </form>
+</dialog>
+{% endblock %}

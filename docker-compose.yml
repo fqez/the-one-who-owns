@@ -1,0 +1,39 @@
+services:
+  app:
+    build: .
+    container_name: prestamos-familiares
+    restart: unless-stopped
+    ports:
+      - "8080:5000"
+    volumes:
+      - ./data:/data
+      - ./backups:/backups
+    environment:
+      - DATA_FILE=/data/prestamos.json
+      - SECRET_KEY=cambia-esta-clave-secreta
+    labels:
+      - "com.centurylinklabs.watchtower.enable=true"
+
+  backup:
+    image: alpine:3.20
+    container_name: prestamos-backup
+    restart: unless-stopped
+    volumes:
+      - ./data:/data:ro
+      - ./backups:/backups
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Backup service started. Running weekly backups..."
+        while true; do
+          if [ -f /data/prestamos.json ]; then
+            TIMESTAMP=$$(date +%Y%m%d_%H%M%S)
+            cp /data/prestamos.json /backups/prestamos_backup_$$TIMESTAMP.json
+            echo "[$$TIMESTAMP] Backup created"
+            # Keep only last 8 backups
+            ls -t /backups/prestamos_backup_*.json 2>/dev/null | tail -n +9 | xargs rm -f 2>/dev/null
+          fi
+          # Sleep 7 days (604800 seconds)
+          sleep 604800
+        done
