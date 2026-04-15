@@ -10,36 +10,17 @@
     </div>
 </header>
 
-<div class="stats-grid">
-    <div class="stat-card">
-        <div class="stat-header">
-            <span class="stat-label">Me Deben</span>
-            <span class="stat-icon stat-icon-green">📈</span>
-        </div>
-        <span class="stat-value text-green">${{ "%.2f"|format(totales.me_deben) }}</span>
-    </div>
-    <div class="stat-card">
-        <div class="stat-header">
-            <span class="stat-label">Yo Debo</span>
-            <span class="stat-icon stat-icon-red">📉</span>
-        </div>
-        <span class="stat-value text-red">${{ "%.2f"|format(totales.yo_debo) }}</span>
-    </div>
-    <div class="stat-card">
-        <div class="stat-header">
-            <span class="stat-label">Balance Neto</span>
-            <span class="stat-icon stat-icon-purple">📊</span>
-        </div>
-        <span class="stat-value {% if totales.balance >= 0 %}text-green{% else %}text-red{% endif %}">${{
-            "%.2f"|format(totales.balance) }}</span>
-    </div>
-    <div class="stat-card">
-        <div class="stat-header">
-            <span class="stat-label">Total Familiares</span>
-            <span class="stat-icon stat-icon-blue">👥</span>
-        </div>
-        <span class="stat-value text-blue">{{ totales.total_familiares }}</span>
-    </div>
+<div class="balance-hero">
+    <span class="balance-hero-label">Balance General</span>
+    <span class="balance-hero-value {% if totales.balance >= 0 %}text-green{% else %}text-red{% endif %}">
+        {{ "%.2f"|format(totales.balance) }} €
+    </span>
+    {% if totales.balance > 0 %}
+    <span class="balance-hero-hint">Te deben en total</span>
+    {% elif totales.balance < 0 %} <span class="balance-hero-hint">Debes en total</span>
+        {% else %}
+        <span class="balance-hero-hint">No hay deudas pendientes</span>
+        {% endif %}
 </div>
 
 <button class="btn btn-primary btn-add-familiar" onclick="document.getElementById('modal-familiar').showModal()">
@@ -62,12 +43,12 @@
         <div class="familiar-balance">
             {% if f.balance > 0 %}
             <span class="badge badge-green">Me debe</span>
-            <span class="balance-amount text-green">${{ "%.2f"|format(f.balance) }}</span>
+            <span class="balance-amount text-green">{{ "%.2f"|format(f.balance) }} €</span>
             {% elif f.balance < 0 %} <span class="badge badge-red">Le debo</span>
-                <span class="balance-amount text-red">-${{ "%.2f"|format(f.balance|abs) }}</span>
+                <span class="balance-amount text-red">-{{ "%.2f"|format(f.balance|abs) }} €</span>
                 {% else %}
                 <span class="badge badge-gray">Sin deuda</span>
-                <span class="balance-amount">$0.00</span>
+                <span class="balance-amount">0.00 €</span>
                 {% endif %}
                 <span class="chevron">›</span>
         </div>

@@ -14,8 +14,8 @@
     </div>
     <div class="balance-box">
         <span class="balance-label">Balance Total</span>
-        <span class="balance-total {% if balance.balance >= 0 %}text-green{% else %}text-red{% endif %}">
-            ${{ "%.2f"|format(balance.balance) }}
+        <span class="balance-total {% if balance.balance >= 0 %}text-red{% else %}text-green{% endif %}">
+            {{ "%.2f"|format(balance.balance) }} €
         </span>
         {% if balance.balance > 0 %}
         <span class="balance-hint">Te debe este monto</span>
@@ -26,72 +26,90 @@
     </div>
 </div>
 
-<button class="btn btn-primary btn-block" onclick="document.getElementById('modal-prestamo').showModal()">
+<button class="btn btn-primary btn-block" onclick="toggleFormPrestamo()">
     + Agregar Nueva Entrada
 </button>
+
+<div id="form-prestamo" class="form-card" style="display: none;">
+    <form method="post" action="{{ url_for('agregar_prestamo', familiar_id=familiar.id) }}">
+        <h3>Nueva Entrada de Préstamo</h3>
+
+        <div class="form-group">
+            <label>Tipo de Transacción *</label>
+            <div class="tipo-toggle">
+                <input type="radio" name="tipo" id="tipo-yo-preste" value="yo_preste" checked>
+                <label for="tipo-yo-preste" class="tipo-option tipo-option-green">
+                    <span class="tipo-title">Yo presté</span>
+                </label>
+                <input type="radio" name="tipo" id="tipo-me-prestaron" value="me_prestaron">
+                <label for="tipo-me-prestaron" class="tipo-option tipo-option-red">
+                    <span class="tipo-title">Me pagaron</span>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-row">
+            <div class="form-group">
+                <label for="monto">Cantidad *</label>
+                <input type="number" id="monto" name="monto" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label for="fecha">Fecha *</label>
+                <input type="date" id="fecha" name="fecha" value="{{ now }}">
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label for="descripcion">Descripción</label>
+            <input type="text" id="descripcion" name="descripcion"
+                placeholder="Ej: Emergencia médica, pago de renta, etc.">
+        </div>
+
+        <div class="form-actions-inline">
+            <button type="submit" class="btn btn-primary btn-block">Guardar Entrada</button>
+            <button type="button" class="btn btn-secondary" onclick="toggleFormPrestamo()">Cancelar</button>
+        </div>
+    </form>
+</div>
 
 <h2 class="section-title">Entradas de Préstamos ({{ prestamos|length }})</h2>
 
 {% if prestamos %}
 <div class="prestamo-list">
     {% for p in prestamos %}
-    <div class="prestamo-card">
-        <div class="prestamo-header">
-            <div class="prestamo-tags">
-                <span class="badge {% if p.estado == 'Pagado' %}badge-green{% else %}badge-yellow{% endif %}">{{
-                    p.estado }}</span>
-                <span class="prestamo-tipo {% if p.tipo == 'me_prestaron' %}text-red{% else %}text-green{% endif %}">
-                    {{ "Me prestaron" if p.tipo == "me_prestaron" else "Yo presté" }}
-                </span>
+    <div class="prestamo-card-compact">
+        <div class="prestamo-left">
+            <div class="prestamo-cantidad {% if p.tipo == 'yo_preste' %}text-red{% else %}text-green{% endif %}">
+                {% if p.tipo == 'yo_preste' %}+{% else %}-{% endif %}{{ "%.2f"|format(p.monto) }} €
             </div>
+            <div class="prestamo-acumulado {% if p.acumulado >= 0 %}text-red{% else %}text-green{% endif %}">
+                Σ {{ "%.2f"|format(p.acumulado) }} €
+            </div>
+        </div>
+        <div class="prestamo-center">
+            <div class="prestamo-top-row">
+                <span class="prestamo-tipo {% if p.tipo == 'me_prestaron' %}text-green{% else %}text-red{% endif %}">{{
+                    "Me pagaron" if p.tipo == "me_prestaron" else "Yo presté" }}</span>
+                <span class="prestamo-fecha">{{ p.fecha }}</span>
+            </div>
+            {% if p.descripcion %}
+            <div class="prestamo-desc">{{ p.descripcion }}</div>
+            {% endif %}
+        </div>
+        <div class="prestamo-actions">
+            <button type="button" class="btn-icon" title="Editar"
+                onclick="abrirEditar('{{ p.id }}', '{{ p.tipo }}', '{{ p.descripcion }}', {{ p.monto }}, '{{ p.fecha }}')">✏️</button>
             <form method="post" action="{{ url_for('eliminar_prestamo', familiar_id=familiar.id, prestamo_id=p.id) }}"
-                onsubmit="return confirm('¿Eliminar este préstamo?')">
+                onsubmit="return confirm('¿Eliminar esta entrada?')" style="display:inline">
                 <button type="submit" class="btn-icon btn-delete" title="Eliminar">🗑️</button>
             </form>
         </div>
-        <div class="prestamo-desc">{{ p.descripcion }}</div>
-        <div class="prestamo-fecha">📅 {{ p.fecha }}</div>
-        <div class="prestamo-montos">
-            <div class="monto-item">
-                <span class="monto-label">Monto Original</span>
-                <span class="monto-value text-red">$ {{ "%.2f"|format(p.monto) }}</span>
-            </div>
-            <div class="monto-item">
-                <span class="monto-label">Pagado</span>
-                <span class="monto-value">$ {{ "%.2f"|format(p.pagado) }}</span>
-            </div>
-            <div class="monto-item">
-                <span class="monto-label">Pendiente</span>
-                <span class="monto-value">$ {{ "%.2f"|format(p.pendiente) }}</span>
-            </div>
-        </div>
-
-        {% if p.pagos %}
-        <details class="pagos-details">
-            <summary>Historial de pagos ({{ p.pagos|length }})</summary>
-            <div class="pagos-list">
-                {% for pago in p.pagos %}
-                <div class="pago-item">
-                    <span>{{ pago.fecha }}</span>
-                    <span class="text-green">+ ${{ "%.2f"|format(pago.monto) }}</span>
-                </div>
-                {% endfor %}
-            </div>
-        </details>
-        {% endif %}
-
-        {% if p.pendiente > 0 %}
-        <button class="btn btn-primary btn-block btn-registrar-pago"
-            onclick="abrirModalPago('{{ p.id }}', {{ p.pendiente }})">
-            + Registrar Pago
-        </button>
-        {% endif %}
     </div>
     {% endfor %}
 </div>
 {% else %}
 <div class="empty-state">
-    <p>No hay préstamos registrados con {{ familiar.nombre }}.</p>
+    <p>No hay entradas registradas con {{ familiar.nombre }}.</p>
 </div>
 {% endif %}
 
@@ -102,48 +120,41 @@
     </form>
 </div>
 
-<dialog id="modal-prestamo" class="modal">
-    <form method="post" action="{{ url_for('agregar_prestamo', familiar_id=familiar.id) }}" class="modal-content">
-        <h3>Agregar Préstamo</h3>
+<dialog id="modal-editar" class="modal">
+    <form id="form-editar" method="post" class="modal-content">
+        <h3>Editar Entrada</h3>
         <div class="form-group">
-            <label for="tipo">Tipo</label>
-            <select id="tipo" name="tipo">
-                <option value="yo_preste">Yo presté (me deben)</option>
-                <option value="me_prestaron">Me prestaron (yo debo)</option>
-            </select>
+            <label>Tipo</label>
+            <div class="tipo-toggle">
+                <input type="radio" name="tipo" id="edit-tipo-yo-preste" value="yo_preste">
+                <label for="edit-tipo-yo-preste" class="tipo-option tipo-option-green">
+                    <span class="tipo-title">Yo presté</span>
+                </label>
+                <input type="radio" name="tipo" id="edit-tipo-me-prestaron" value="me_prestaron">
+                <label for="edit-tipo-me-prestaron" class="tipo-option tipo-option-red">
+                    <span class="tipo-title">Me pagaron</span>
+                </label>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label for="edit-monto">Cantidad *</label>
+                <input type="number" id="edit-monto" name="monto" step="0.01" min="0.01" placeholder="0.00" required>
+            </div>
+            <div class="form-group">
+                <label for="edit-fecha">Fecha *</label>
+                <input type="date" id="edit-fecha" name="fecha">
+            </div>
         </div>
         <div class="form-group">
-            <label for="descripcion">Descripción</label>
-            <input type="text" id="descripcion" name="descripcion" placeholder="Motivo del préstamo" required>
-        </div>
-        <div class="form-group">
-            <label for="monto">Monto ($)</label>
-            <input type="number" id="monto" name="monto" step="0.01" min="0.01" placeholder="0.00" required>
-        </div>
-        <div class="form-group">
-            <label for="fecha">Fecha</label>
-            <input type="date" id="fecha" name="fecha" value="{{ now }}">
+            <label for="edit-descripcion">Descripción</label>
+            <input type="text" id="edit-descripcion" name="descripcion"
+                placeholder="Ej: Emergencia médica, pago de renta, etc.">
         </div>
         <div class="modal-actions">
+            <button type="submit" class="btn btn-primary btn-block">Guardar Cambios</button>
             <button type="button" class="btn btn-secondary"
-                onclick="document.getElementById('modal-prestamo').close()">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Agregar</button>
-        </div>
-    </form>
-</dialog>
-
-<dialog id="modal-pago" class="modal">
-    <form id="form-pago" method="post" class="modal-content">
-        <h3>Registrar Pago</h3>
-        <div class="form-group">
-            <label for="monto-pago">Monto ($)</label>
-            <input type="number" id="monto-pago" name="monto" step="0.01" min="0.01" placeholder="0.00" required>
-            <small id="pago-hint" class="form-hint"></small>
-        </div>
-        <div class="modal-actions">
-            <button type="button" class="btn btn-secondary"
-                onclick="document.getElementById('modal-pago').close()">Cancelar</button>
-            <button type="submit" class="btn btn-primary">Registrar</button>
+                onclick="document.getElementById('modal-editar').close()">Cancelar</button>
         </div>
     </form>
 </dialog>
@@ -151,14 +162,32 @@
 
 {% block scripts %}
 <script>
-    function abrirModalPago(prestamoId, pendiente) {
-        const form = document.getElementById('form-pago');
-        form.action = '/familiar/{{ familiar.id }}/prestamo/' + prestamoId + '/pago';
-        document.getElementById('monto-pago').max = pendiente;
-        document.getElementById('monto-pago').value = '';
-        document.getElementById('pago-hint').textContent = 'Máximo: $' + pendiente.toFixed(2);
-        document.getElementById('modal-pago').showModal();
+    function toggleFormPrestamo() {
+        const form = document.getElementById('form-prestamo');
+        const btn = form.previousElementSibling;
+        if (form.style.display === 'none') {
+            form.style.display = 'block';
+            btn.style.display = 'none';
+        } else {
+            form.style.display = 'none';
+            btn.style.display = '';
+        }
     }
+
+    function abrirEditar(id, tipo, descripcion, monto, fecha) {
+        const form = document.getElementById('form-editar');
+        form.action = '/familiar/{{ familiar.id }}/prestamo/' + id + '/editar';
+        document.getElementById('edit-monto').value = monto;
+        document.getElementById('edit-fecha').value = fecha;
+        document.getElementById('edit-descripcion').value = descripcion;
+        if (tipo === 'yo_preste') {
+            document.getElementById('edit-tipo-yo-preste').checked = true;
+        } else {
+            document.getElementById('edit-tipo-me-prestaron').checked = true;
+        }
+        document.getElementById('modal-editar').showModal();
+    }
+
     document.getElementById('fecha').value = document.getElementById('fecha').value || new Date().toISOString().split('T')[0];
 </script>
 {% endblock %}

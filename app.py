@@ -14,8 +14,11 @@ DATA_FILE = os.environ.get("DATA_FILE", "/data/prestamos.json")
 def load_data():
     if not os.path.exists(DATA_FILE):
         return {"familiares": []}
-    with open(DATA_FILE, "r", encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(DATA_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except (json.JSONDecodeError, ValueError):
+        return {"familiares": []}
 
 
 def save_data(data):
@@ -25,15 +28,16 @@ def save_data(data):
 
 
 def calcular_balance_familiar(familiar):
+    balance = 0.0
     me_deben = 0.0
-    yo_debo = 0.0
+    me_pagaron = 0.0
     for p in familiar.get("prestamos", []):
-        pendiente = p["monto"] - p["pagado"]
         if p["tipo"] == "yo_preste":
-            me_deben += pendiente
+            me_deben += p["monto"]
         else:
-            yo_debo += pendiente
-    return {"me_deben": me_deben, "yo_debo": yo_debo, "balance": me_deben - yo_debo}
+            me_pagaron += p["monto"]
+    balance = me_deben - me_pagaron
+    return {"me_deben": me_deben, "yo_debo": me_pagaron, "balance": balance}
 
 
 def calcular_totales(data):
@@ -98,15 +102,15 @@ def ver_familiar(familiar_id):
         flash("Familiar no encontrado", "error")
         return redirect(url_for("index"))
     balance = calcular_balance_familiar(familiar)
+    # Compute running totals for each entry
     prestamos = []
+    acumulado = 0.0
     for p in familiar.get("prestamos", []):
-        prestamos.append(
-            {
-                **p,
-                "pendiente": p["monto"] - p["pagado"],
-                "estado": "Pagado" if p["monto"] <= p["pagado"] else "Pendiente",
-            }
-        )
+        if p["tipo"] == "yo_preste":
+            acumulado += p["monto"]
+        else:
+            acumulado -= p["monto"]
+        prestamos.append({**p, "acumulado": acumulado})
     return render_template(
         "familiar.html",
         familiar=familiar,
@@ -132,8 +136,8 @@ def agregar_prestamo(familiar_id):
     tipo = request.form.get("tipo", "yo_preste")
     fecha = request.form.get("fecha", datetime.now().strftime("%Y-%m-%d"))
 
-    if not descripcion or monto <= 0:
-        flash("Descripción y monto válido son obligatorios", "error")
+    if monto <= 0:
+        flash("La cantidad debe ser mayor a 0", "error")
         return redirect(url_for("ver_familiar", familiar_id=familiar_id))
 
     familiar.setdefault("prestamos", []).append(
@@ -142,9 +146,7 @@ def agregar_prestamo(familiar_id):
             "tipo": tipo,
             "descripcion": descripcion,
             "monto": monto,
-            "pagado": 0.0,
             "fecha": fecha,
-            "pagos": [],
         }
     )
     save_data(data)
@@ -152,8 +154,8 @@ def agregar_prestamo(familiar_id):
     return redirect(url_for("ver_familiar", familiar_id=familiar_id))
 
 
-@app.route("/familiar/<familiar_id>/prestamo/<prestamo_id>/pago", methods=["POST"])
-def registrar_pago(familiar_id, prestamo_id):
+@app.route("/familiar/<familiar_id>/prestamo/<prestamo_id>/editar", methods=["POST"])
+def editar_prestamo(familiar_id, prestamo_id):
     data = load_data()
     familiar = next((f for f in data["familiares"] if f["id"] == familiar_id), None)
     if not familiar:
@@ -167,26 +169,24 @@ def registrar_pago(familiar_id, prestamo_id):
         flash("Préstamo no encontrado", "error")
         return redirect(url_for("ver_familiar", familiar_id=familiar_id))
 
+    descripcion = request.form.get("descripcion", "").strip()
     try:
-        monto_pago = round(float(request.form.get("monto", 0)), 2)
+        monto = round(float(request.form.get("monto", 0)), 2)
     except ValueError:
-        monto_pago = 0.0
+        monto = 0.0
+    tipo = request.form.get("tipo", prestamo["tipo"])
+    fecha = request.form.get("fecha", prestamo["fecha"])
 
-    pendiente = prestamo["monto"] - prestamo["pagado"]
-    if monto_pago <= 0 or monto_pago > pendiente:
-        flash(f"Monto inválido. Pendiente: ${pendiente:.2f}", "error")
+    if monto <= 0:
+        flash("La cantidad debe ser mayor a 0", "error")
         return redirect(url_for("ver_familiar", familiar_id=familiar_id))
 
-    prestamo["pagos"].append(
-        {
-            "id": str(uuid.uuid4()),
-            "monto": monto_pago,
-            "fecha": datetime.now().strftime("%Y-%m-%d"),
-        }
-    )
-    prestamo["pagado"] = round(prestamo["pagado"] + monto_pago, 2)
+    prestamo["tipo"] = tipo
+    prestamo["descripcion"] = descripcion
+    prestamo["monto"] = monto
+    prestamo["fecha"] = fecha
     save_data(data)
-    flash(f"Pago de ${monto_pago:.2f} registrado", "success")
+    flash("Entrada actualizada", "success")
     return redirect(url_for("ver_familiar", familiar_id=familiar_id))
 
 

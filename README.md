@@ -1,6 +1,6 @@
-# 💰 Control de Préstamos Familiares
+# 💶 Control de Préstamos Familiares
 
-Aplicación web sencilla para llevar el recuento del dinero que prestas a tus familiares. Diseñada para ser ligera, responsiva (móvil-first) y fácil de desplegar en un homelab.
+Aplicación web sencilla para llevar el recuento del dinero (en euros, €) que prestas a tus familiares. Diseñada para ser ligera, responsiva (móvil-first) y fácil de desplegar en un homelab.
 
 ## Funcionalidades
 
@@ -69,7 +69,7 @@ docker compose down
 
 ## Datos
 
-Toda la información se guarda en `data/prestamos.json`. Este fichero se monta como volumen Docker, así que persiste entre reinicios.
+Toda la información se guarda en `data/prestamos.json`. Este fichero se monta como volumen Docker, así que persiste entre reinicios. **Todos los importes están en euros (€), con el símbolo al final (ejemplo: 123.45 €).**
 
 ### Backups
 
